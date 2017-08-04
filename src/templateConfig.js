@@ -26,7 +26,7 @@ module.exports = {
     options: colorDB
   },
   sizes: {
-    bead: {width: 10, height: 14},
+    baseBeadSpecs: {width: 10, height: 14},
     fixedTemplateHeight: 649,
     beadDimensionsFromFixedWidth: beadDimensionsFromFixedWidth
   }

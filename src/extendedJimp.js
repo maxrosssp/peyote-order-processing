@@ -1,5 +1,16 @@
 var PeyotePalette = require('./peyotePalette');
 var Jimp = require("jimp");
+var CONFIG = require('./templateConfig');
+
+Jimp.prototype.getBeadSpecs = function (templateBeadSize) {
+  var width = this.bitmap.width;
+  var height = this.bitmap.height;
+
+  return {
+    width: width / templateBeadSize.width,
+    height: height / templateBeadSize.height
+  };
+};
 
 function applyKernel (im, kernel, x, y) {
   let value = [0, 0, 0];
@@ -22,6 +33,26 @@ function isNodePattern (cb) {
       throw new Error("Callback must be a function");
   return true;
 }
+
+Jimp.prototype.peyoteAbsoluteScale = function (f, templateBeadSize, mode, cb) {
+    if ("number" != typeof f)
+        return throwError.call(this, "f must be a number", cb);
+    if (f < 0)
+        return throwError.call(this, "f must be a positive number", cb);
+
+    if ("function" == typeof mode && "undefined" == typeof cb) {
+        cb = mode;
+        mode = null;
+    }
+
+    var w = (CONFIG.sizes.baseBeadSpecs.width * f) * templateBeadSize.width;
+    var h = (CONFIG.sizes.baseBeadSpecs.height * f) * templateBeadSize.height;
+
+    this.resize(w, h, mode);
+
+    if (isNodePattern(cb)) return cb.call(this, null, this);
+    else return this;
+};
 
 Jimp.prototype.peyotePixelate = function(pixel_w, pixel_h, palette, cb) {
 
@@ -86,42 +117,6 @@ Jimp.prototype.peyoteNumber = function(pixel_w, pixel_h, palette, cb) {
 
     if (isNodePattern(cb)) return cb.call(this, null, this);
     else return this;
-};
-
-Jimp.prototype.addPeyoteGrid = function(widthInBeads, heightInBeads, cb) {
-  // var image = new Jimp(this.bitmap.width, this.bitmap.height, function (err, image) {
-  //     // this image is 256 x 256, every pixel is set to 0x00000000
-  // });
-  var peyoteGrid = {widthInBeads: 6, heightInBeads: 2};
-  var targetSize = {width: this.bitmap.width, height: this.bitmap.height};
-  var necessaryGrids = {
-    columns: (widthInBeads / peyoteGrid.widthInBeads),
-    rows: (heightInBeads / peyoteGrid.heightInBeads)
-  };
-
-  var gridFragmentSize = {
-    width: (targetSize.width / necessaryGrids.columns),
-    height: (targetSize.height / necessaryGrids.rows)
-  };
-
-  // var gridFragment = await Jimp.read('./assets/peyote_grid.png');
-  // var resized = await gridFragment.resize(gridFragmentSize.width, gridFragmentSize.height);
-
-  // this = await this.composite(resized, 0, 0);
-
-  // if (isNodePattern(cb)) return cb.call(this, null, this);
-  // return this;
-
-  // return Jimp.read('./assets/peyote_grid.png')
-  // .then(function(gridFragment) {
-  //   return gridFragment.resize(gridFragmentSize.width, gridFragmentSize.height, function(err, proportionalGrid) {
-  //     if (err) return throwError.call(this, "couldn't resize grid fragment", cb);
-
-  //     return this.composite(proportionalGrid, 0, 0);
-  //   });
-  // });
-
-
 };
 
 module.exports = Jimp;

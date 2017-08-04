@@ -1,3 +1,5 @@
+var Jimp = require('./extendedJimp');
+
 var getClosestColor = function(matchColor, colorList) {
   if (colorList === null || colorList.length < 1 || !matchColor) {
     return '#afa0af';
@@ -32,8 +34,11 @@ var rgbToHex = function(r, g, b) {
 };
 
 function hexToRgb(hex) {
-  var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : null;
+  var result = Jimp.intToRGBA(hex);
+
+  return [result.r, result.g, result.b];
+  // var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  // return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : null;
 };
 
 module.exports = {

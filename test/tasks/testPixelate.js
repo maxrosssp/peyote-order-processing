@@ -128,7 +128,7 @@ module.exports = function(grunt) {
 
     TemplateBuilder.build('./test/images/test_1.jpg', 20, 3)
     .then(function(image) {
-      return image.write('./test/output/build_1.jpg');
+      return image.write('./test/images/output/build_1.jpg');
     }).then(function() {
       done();
     });
