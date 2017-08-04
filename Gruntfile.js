@@ -9,4 +9,6 @@ module.exports = function(grunt) {
   });
 
   grunt.registerTask('test', ['test_pixelate', 'test_grid']);
+
+  grunt.registerTask('build', ['test_build']);
 };

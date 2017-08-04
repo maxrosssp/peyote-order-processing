@@ -1,42 +1,61 @@
-var Jimp = require("jimp");
+var async = require('asyncawait/async');
+var await = require('asyncawait/await');
+
+var Jimp = require('./extendedJimp');
 var ColorThief = require('color-thief-jimp');
 
-var BEAD = {height: 14, width: 10};
+var PeyotePalette = require('./peyotePalette');
+var CONFIG = require('./templateConfig');
 
-var beadDimensionsFromImgWidth = {
-  '119': {width:24, height:93.5}, '111': {width:24, height:100.5}, '103': {width:24, height:107.5}, '97' : {width:24, height:114.5}, '92' : {width:24, height:121.5}, '86' : {width:24, height:129.5}, '82' : {width:24, height:136.5},
-  '134': {width:27, height:93.5}, '125': {width:27, height:100.5}, '116': {width:27, height:107.5},  '109': {width:27, height:114.5}, '103': {width:27, height:121.5}, '97' : {width:27, height:129.5}, '92' : {width:27, height:136.5},
-  '149': {width:30, height:93.5}, '138': {width:30, height:100.5}, '129': {width:30, height:107.5}, '121': {width:30, height:114.5}, '114': {width:30, height:121.5}, '107': {width:30, height:129.5}, '102': {width:30, height:136.5}
-};
+var BEAD = CONFIG.sizes.bead;
+var FIXED_TEMPLATE_HEIGHT = CONFIG.sizes.fixedTemplateHeight;
+var FIXED_WIDTH_BEAD_DIMENSIONS = CONFIG.sizes.beadDimensionsFromFixedWidth;
 
-var getColorPalette = function(image, colorCount) {
-  return ColorThief.getPalette(image, colorCount);
-};
+var peyotePixelateImage = async (function(image, palette, templateSize) {
+  var columnGroupWidth = templateSize.columnGroup.width.pixels;
 
-var getTemplatePixelDimensions = function(image) {
-  var beadDimensions = beadDimensionsFromImgWidth[image.width];
+  var columnGroups = [];
+  for (var i = 0; i < templateSize.width.columnGroups; i++) {
+    var columnGroup = await (image.clone()
+                             .crop(i * columnGroupWidth, (i % 2 === 0) ? 0 : (BEAD.height / 2), columnGroupWidth, templateSize.height.pixels - 1)
+                             .peyotePixelate(BEAD.width, BEAD.height, palette));
 
-  return {height: beadDimensions.height * BEAD.height, width: beadDimensions.width * BEAD.width};
-};
+    columnGroups.push(columnGroup);
+  }
 
-var build = function(imagePath, colorCount) {
-  console.log('1');
+  var blankImage = await (new Jimp(templateSize.width.pixels, templateSize.height.pixels));
 
-	Jimp.read(imagePath)
-	.then(function(image) {
-    var templateSize = getTemplatePixelDimensions(image);
-    var colorPalette = getColorPalette(image, colorCount);
+  var pixelImage = await (columnGroups.reduce(function(image, columnGroup, index) {
+    return image.composite(columnGroup, index * columnGroupWidth, (index % 2 === 0) ? 0 : (BEAD.height / 2));
+  }, blankImage));
 
+  return await (pixelImage.peyoteNumber(BEAD.width, BEAD.height, palette));
+});
 
-    image.resize(templateSize.width, templateSize.height)
-         .clone().pixelate(20)
-         .write("./test/output/output.jpg");
+var getDelicaPalette = async (function(image, colorCount) {
+  var palette = await (ColorThief.getPalette(image, colorCount));
 
-	})
-	.catch(function(err) {
-		console.error(err);
-	});
-};
+  return PeyotePalette.getClosestPalette(palette, CONFIG.colors.options);
+});
+
+var build = async (function(imagePath, colorCount, beadsPerColumnGroup) {
+  var image = await (Jimp.read(imagePath));
+
+  var templateBeadDimensions = FIXED_WIDTH_BEAD_DIMENSIONS[Math.round((image.bitmap.width / image.bitmap.height) * FIXED_TEMPLATE_HEIGHT)];
+  var templateSize = {
+    width: {beads: templateBeadDimensions.width, pixels: templateBeadDimensions.width * BEAD.width, columnGroups: templateBeadDimensions.width / beadsPerColumnGroup},
+    height: {beads: templateBeadDimensions.height, pixels: templateBeadDimensions.height * BEAD.height},
+    columnGroup: {
+      width: {beads: beadsPerColumnGroup, pixels: beadsPerColumnGroup * BEAD.width}
+    }
+  };
+
+  image = await (image.resize(templateSize.width.pixels, templateSize.height.pixels));
+
+  var palette = await (getDelicaPalette(image, colorCount));
+
+  return await (peyotePixelateImage(image, palette, templateSize));
+});
 
 module.exports = {
   build: build

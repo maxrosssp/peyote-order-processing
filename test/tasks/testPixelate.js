@@ -1,8 +1,15 @@
 var async = require('asyncawait/async');
 var await = require('asyncawait/await');
 
+var ColorThief = require('color-thief-jimp');
+
 var TemplateBuilder = require("../../src/TemplateBuilder");
 var Jimp = require("../../src/extendedJimp");
+
+var pxImagePath = './test/images/test_6.jpg';
+var pxImage = './test/images/output/tryPixelate_4.jpg';
+var gridImage = './test/images/output/tryGrid_4.jpg';
+
 
 var beadDimensionsFromImgWidth = {
   '119': {width:24, height:93.5}, '111': {width:24, height:100.5}, '103': {width:24, height:107.5}, '97' : {width:24, height:114.5}, '92' : {width:24, height:121.5}, '86' : {width:24, height:129.5}, '82' : {width:24, height:136.5},
@@ -24,120 +31,124 @@ var files = {
 
 module.exports = function(grunt) {
   grunt.registerTask('test_grid', 'test grid', function() {
+    var fixedTemplateHeight = 649;
 
-    var done = this.async();
+    var beadPixelWidth = 10;
+    var beadPixelHeight = 14;
+    var beadsPerColumn = 3;
 
-    var imageName = 'test_3';
-    var imagePath = './test/images/output/tryPixelate_5.jpg';
-
-    Jimp.read(imagePath)
-    .then(function(image) {
-      console.log(image.bitmap.width + ' x ' + image.bitmap.height);
-
-      Jimp.read('./src/assets/peyote_grid.png')
-      .then(function(gridFragment) {
-        console.log(gridFragment.bitmap.width + ' x ' + gridFragment.bitmap.height);
-
-        var width = Math.round((image.bitmap.width / image.bitmap.height) * 649);
-
-        var dimensions = beadDimensionsFromImgWidth[width];
-
-        console.log(dimensions);
-
-        var gridLayout = {
-          columns: (dimensions.width / 6),
-          rows: (dimensions.height / 2)
-        };
-
-        var gridFragmentSize = {
-          width: ((dimensions.width * 10) / gridLayout.columns),
-          height: ((dimensions.height * 14) / gridLayout.rows)
-        };
-
-        var newImageSize = {
-          width: (gridFragmentSize.width * gridLayout.columns),
-          height: (gridFragmentSize.height * gridLayout.rows)
-        };
-
-        gridFragment.resize(gridFragmentSize.width, gridFragmentSize.height, function(err, gridFragmentResize) {
-          if (err) throwError.call(err, "couldn't resize grid fragment");
-
-          new Jimp(newImageSize.width, newImageSize.height, function (err, blankImage) {
-            if (err) throwError.call(err, "couldn't create new Jimp object");
-
-            Array.from(Array(Math.round(gridLayout.columns)).keys()).reduce(function(image, position) {
-              return image.composite(gridFragmentResize, gridFragmentSize.width * position, 0);
-            }, blankImage).clone(function(err, gridRow) {
-              if (err) throwError.call(err, "couldn't create grid row");
-
-              Array.from(Array(Math.round(gridLayout.rows)).keys()).reduce(function(image, position) {
-                return image.composite(gridRow, 0, gridFragmentSize.height * position);
-              }, gridRow).clone(function(err, gridFiveRow) {
-                if (err) throwError.call(err, "couldn't create 5 grid rows");
-
-                image
-                .resize(newImageSize.width, newImageSize.height)
-                .composite(gridFiveRow, 0, 0)
-                .write('./test/images/output/tryGrid_5.jpg');
-
-                done();
-              });
-            });
-          });
-        });
-      });
-    })
-    .catch(function(err) {
-      console.log(err);
-
-      done();
-    });
-  });
-
-  grunt.registerTask('test_pixelate', 'test pixelate', function() {
+    var gridFragmentColumns = 2;
+    var gridFragmentRows = 2;
 
     var done = this.async();
 
     var suspendable = async (function() {
-      var imageName = 'test_3';
-      var imagePath = './test/images/' + imageName + '.jpg';
+      var image = await (Jimp.read(pxImage));
+      var gridFragment = await (Jimp.read('./src/assets/peyote_grid.png'));
 
-      var image = await (Jimp.read(imagePath));
+      var dimensions = beadDimensionsFromImgWidth[Math.round((image.bitmap.width / image.bitmap.height) * fixedTemplateHeight)];
 
-      console.log(image.bitmap.width + ' x ' + image.bitmap.height);
+      var gridLayout = {columns: (dimensions.width / (beadsPerColumn * gridFragmentColumns)), rows: (dimensions.height / gridFragmentRows)};
+      var gridFragmentSize = {width: ((dimensions.width * beadPixelWidth) / gridLayout.columns), height: ((dimensions.height * beadPixelHeight) / gridLayout.rows)};
+      var newImageSize = {width: (gridFragmentSize.width * gridLayout.columns), height: (gridFragmentSize.height * gridLayout.rows)};
 
-      var dimensions = beadDimensionsFromImgWidth[image.bitmap.width];
+      var gridFragmentResize = await (gridFragment.resize(gridFragmentSize.width, gridFragmentSize.height));
+      var blankImage = await (new Jimp(newImageSize.width, newImageSize.height));
 
-      var height = (14 * dimensions.height) - 1
+      var gridRow = await (Array.from(Array(Math.round(gridLayout.columns)).keys()).reduce(function(image, position) {
+        return image.composite(gridFragmentResize, gridFragmentSize.width * position, 0);
+      }, blankImage));
 
-      var resizedImage = await (image.resize(10 * dimensions.width, 14 * dimensions.height));
+      var gridFull = await (Array.from(Array(Math.round(gridLayout.rows)).keys()).reduce(function(image, position) {
+        return image.composite(gridRow, 0, gridFragmentSize.height * position);
+      }, gridRow));
 
-      var blankImage = await (new Jimp(10 * dimensions.width, 14 * dimensions.height));
-
-      var t0 = await (resizedImage.clone().crop(0, 0, 30, height).pixelateRect(10, 14));
-      var b1 = await (resizedImage.clone().crop(30, 7, 30, height).pixelateRect(10, 14));
-      var t2 = await (resizedImage.clone().crop(60, 0, 30, height).pixelateRect(10, 14));
-      var b3 = await (resizedImage.clone().crop(90, 7, 30, height).pixelateRect(10, 14));
-      var t4 = await (resizedImage.clone().crop(120, 0, 30, height).pixelateRect(10, 14));
-      var b5 = await (resizedImage.clone().crop(150, 7, 30, height).pixelateRect(10, 14));
-      var t6 = await (resizedImage.clone().crop(180, 0, 30, height).pixelateRect(10, 14));
-      var b7 = await (resizedImage.clone().crop(210, 7, 30, height).pixelateRect(10, 14));
-
-      await (blankImage
-      .composite(t0, 0, 0)
-      .composite(b1, 30, 7)
-      .composite(t2, 60, 0)
-      .composite(b3, 90, 7)
-      .composite(t4, 120, 0)
-      .composite(b5, 150, 7)
-      .composite(t6, 180, 0)
-      .composite(b7, 210, 7)
-      .write('./test/images/output/tryPixelate_5.jpg'));
+      await (image
+      .resize(newImageSize.width, newImageSize.height)
+      .composite(gridFull, 0, 0)
+      .write(gridImage));
 
       done();
     });
 
     suspendable();
+  });
 
+  grunt.registerTask('test_pixelate', 'test pixelate', function() {
+    var beadPixelWidth = 10;
+    var beadPixelHeight = 14;
+    var beadsPerColumn = 3;
+
+    var colorCount = 20;
+
+
+    var done = this.async();
+
+    var suspendable = async (function() {
+      var image = await (Jimp.read(pxImagePath));
+
+      var dimensions = beadDimensionsFromImgWidth[image.bitmap.width];
+
+      var width = beadPixelWidth * dimensions.width;
+      var height = beadPixelHeight * dimensions.height;
+
+      var resizedImage = await (image.resize(width, height));
+
+      var palette = await (ColorThief.getPalette(resizedImage, colorCount));
+
+      var columnGroups = [];
+      var columnGroupCount = dimensions.width / beadsPerColumn;
+      var columnGroupWidth = beadPixelWidth * beadsPerColumn;
+
+      for (var i = 0; i < columnGroupCount; i++) {
+        var columnGroup = await (resizedImage
+                                 .clone()
+                                 .crop(i * columnGroupWidth, (i % 2 === 0) ? 0 : (beadPixelHeight / 2), columnGroupWidth, height - 1)
+                                 .peyotePixelate(beadPixelWidth, beadPixelHeight, palette));
+
+        columnGroups.push(columnGroup);
+      }
+
+      var blankImage = await (new Jimp(width, height));
+
+      var image = await (columnGroups.reduce(function(image, columnGroup, index) {
+        return image.composite(columnGroup, index * columnGroupWidth, (index % 2 === 0) ? 0 : (beadPixelHeight / 2));
+      }, blankImage));
+
+      await (image.write(pxImage));
+
+      done();
+    });
+
+    suspendable();
+  });
+
+  grunt.registerTask('test_build', 'test build', function() {
+    var done = this.async();
+
+    TemplateBuilder.build('./test/images/test_1.jpg', 20, 3)
+    .then(function(image) {
+      return image.write('./test/output/build_1.jpg');
+    }).then(function() {
+      done();
+    });
   });
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

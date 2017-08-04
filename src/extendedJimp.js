@@ -1,3 +1,4 @@
+var PeyotePalette = require('./peyotePalette');
 var Jimp = require("jimp");
 
 function applyKernel (im, kernel, x, y) {
@@ -22,28 +23,13 @@ function isNodePattern (cb) {
   return true;
 }
 
-Jimp.prototype.pixelateRect = function(pixel_w, pixel_h, x, y, w, h, cb) {
+Jimp.prototype.peyotePixelate = function(pixel_w, pixel_h, palette, cb) {
 
-    if ("function" == typeof x) {
-      cb = x;
-      x = y = w = h = undefined;
+    if ("function" == typeof palette) {
+      cb = palette;
     } else {
-      if ("number" != typeof pixel_w)
-          return throwError.call(this, "pixel_w must be a number", cb);
-      if ("number" != typeof pixel_h)
-          return throwError.call(this, "pixel_h must be a number", cb);
-      if (x !== undefined)
-          if ("number" != typeof x)
-              return throwError.call(this, "x must be a number", cb);
-      if (y !== undefined)
-          if ("number" != typeof y)
-              return throwError.call(this, "y must be a number", cb);
-      if (w !== undefined)
-          if ("number" != typeof w)
-              return throwError.call(this, "w must be a number", cb);
-      if (h !== undefined)
-          if ("number" != typeof h)
-              return throwError.call(this, "h must be a number", cb);
+      if ("number" != typeof pixel_w) return throwError.call(this, "pixel_w must be a number", cb);
+      if ("number" != typeof pixel_h) return throwError.call(this, "pixel_h must be a number", cb);
     }
 
     var kernel = [
@@ -52,27 +38,55 @@ Jimp.prototype.pixelateRect = function(pixel_w, pixel_h, x, y, w, h, cb) {
         [1 / 16, 2 / 16, 1 / 16]
     ];
 
-    x = x !== undefined ? x : 0;
-    y = y !== undefined ? y : 0;
-    w = w !== undefined ? w : this.bitmap.width - x;
-    h = h !== undefined ? h : this.bitmap.height - y;
-
     var source = this.clone();
-    this.scan(x, y, w, h, function (xx, yx, idx) {
+    this.scan(0, 0, this.bitmap.width, this.bitmap.height, function (xx, yx, idx) {
 
-        xx = pixel_w * Math.floor(xx / pixel_w);
-        yx = pixel_h * Math.floor(yx / pixel_h);
+        xx = (pixel_w * Math.floor(xx / pixel_w)) + Math.round(pixel_w / 2);
+        yx = (pixel_h * Math.floor(yx / pixel_h)) + Math.round(pixel_h / 2);
 
         var value = applyKernel(source, kernel, xx, yx);
 
-        this.bitmap.data[idx] = value[0];
-        this.bitmap.data[idx + 1] = value[1];
-        this.bitmap.data[idx + 2] = value[2];
+        var bestMatch = palette ? PeyotePalette.getClosestColor(value, palette) : value;
+
+        this.bitmap.data[idx] = bestMatch[0];
+        this.bitmap.data[idx + 1] = bestMatch[1];
+        this.bitmap.data[idx + 2] = bestMatch[2];
     });
 
     if (isNodePattern(cb)) return cb.call(this, null, this);
     else return this;
-}
+};
+
+Jimp.prototype.peyoteNumber = function(pixel_w, pixel_h, palette, cb) {
+
+    if ("function" == typeof palette) {
+      cb = palette;
+    } else {
+      if ("number" != typeof pixel_w) return throwError.call(this, "pixel_w must be a number", cb);
+      if ("number" != typeof pixel_h) return throwError.call(this, "pixel_h must be a number", cb);
+    }
+
+    var colorMap = {};
+
+    Jimp.loadFont(Jimp.FONT_SANS_32_BLACK).then(function(font) {
+
+      this.scan(0, 0, this.bitmap.width, this.bitmap.height, function (x, y, idx) {
+          center_x = (pixel_w * Math.floor(x / pixel_w)) + Math.round(pixel_w / 2);
+          center_y = (pixel_h * Math.floor(y / pixel_h)) + Math.round(pixel_h / 2);
+
+          var pixelColor = this.getPixelColor(center_x, center_y);
+
+          if (!colorMap[pixelColor]) {
+            colorMap[pixelColor] = Object.keys(colorMap) + 1;
+          }
+
+          this.print(font, x, y, colorMap[pixelColor] + '', pixel_w);
+      });
+    });
+
+    if (isNodePattern(cb)) return cb.call(this, null, this);
+    else return this;
+};
 
 Jimp.prototype.addPeyoteGrid = function(widthInBeads, heightInBeads, cb) {
   // var image = new Jimp(this.bitmap.width, this.bitmap.height, function (err, image) {
