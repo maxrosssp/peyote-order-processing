@@ -126,9 +126,10 @@ module.exports = function(grunt) {
   grunt.registerTask('test_build', 'test build', function() {
     var done = this.async();
 
-    TemplateBuilder.build('./test/images/test_1.jpg', 20, 3)
+    TemplateBuilder.build('./test/images/test_4.jpg', 20, 3)
     .then(function(image) {
-      return image.write('./test/images/output/build_1.jpg');
+      return image.write('./test/images/output/build_4.jpg');
+
     }).then(function() {
       done();
     });

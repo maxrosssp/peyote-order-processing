@@ -29,5 +29,22 @@ module.exports = {
     baseBeadSpecs: {width: 10, height: 14},
     fixedTemplateHeight: 649,
     beadDimensionsFromFixedWidth: beadDimensionsFromFixedWidth
+  },
+  gridFragments: {
+    '3': {
+      path: './src/assets/grids/column_group_3.png',
+      columnGroups: 2,
+      rows: 2
+    },
+    '2': {
+      path: './src/assets/grids/column_group_2.png',
+      columnGroups: 2,
+      rows: 2
+    },
+    '1': {
+      path: './src/assets/grids/column_group_1.png',
+      columnGroups: 2,
+      rows: 2
+    }
   }
 };

@@ -23,6 +23,7 @@
     "jimp": "^0.2.28"
   },
   "devDependencies": {
-    "grunt": "^1.0.1"
+    "grunt": "^1.0.1",
+    "grunt-contrib-compress": "^1.4.3"
   }
 }
